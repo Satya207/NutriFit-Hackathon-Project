@@ -41,3 +41,16 @@ This project helped improve:
 
 ## Note
 This project was developed within a limited hackathon timeframe and is shared as part of my learning and development journey.
+
+## Screenshots
+
+### Daily Tasks & Consistency Tracking
+![Tasks Page](tasks-page.png)
+
+### Healthy lifestyle support
+![BMI Home Page](bmi-homepage.png)
+![Health Planner Page](health-planner-page.png)
+![Health Planner Results Page](health-planner-results-page.png)
+
+### Workout Guidance
+![Workout Page](workout-page.png)
