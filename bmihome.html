@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Join • BMI & Nutrition Portal</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg1:#eaf7ff; --bg2:#cfeeff; --primary:#0ea5e9; --primary2:#0284c7;
+    --text:#0f172a; --muted:#64748b; --card:#ffffff; --ring:rgba(56,189,248,.35);
+  }
+  *{box-sizing:border-box} body{margin:0;font-family:ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial;
+    color:var(--text);
+    background:
+      radial-gradient(1000px 600px at 10% -10%, var(--bg2), transparent),
+      linear-gradient(135deg, var(--bg1), #ffffff);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  }
+  /* Hero */
+  header{ text-align:center; padding:76px 20px 40px; }
+  header h1{ margin:0; font-size:clamp(2rem,3.6vw,3rem); color:#0369a1 }
+  header p{ color:var(--muted); margin:.75rem 0 1.25rem }
+  .join-btn{
+    background:linear-gradient(90deg,var(--primary),var(--primary2)); color:#fff; border:none;
+    padding:15px 28px; border-radius:999px; font-weight:700; cursor:pointer;
+    box-shadow:0 16px 34px rgba(2,132,199,.28); transition:.2s transform,.2s box-shadow;
+  }
+  .join-btn:hover{ transform:translateY(-1px); box-shadow:0 20px 38px rgba(2,132,199,.32) }
+
+  /* Protected App Shell (hidden until logged in) */
+  .app{ width:min(1100px,94vw); display:none; grid-template-columns:1.25fr .75fr; gap:18px; margin:0 auto 40px }
+  @media (max-width:980px){ .app{ grid-template-columns:1fr } }
+  .card{
+    background:var(--card); border-radius:22px; padding:22px;
+    box-shadow:0 12px 34px rgba(2,132,199,.12), 0 2px 6px rgba(2,132,199,.06);
+    animation:fadeIn .35s ease both;
+  }
+  h2{ margin:.2rem 0 1rem; color:#0b5a8a; font-size:1.25rem }
+  .sub{ color:var(--muted); margin-top:-6px }
+  .row{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px }
+  @media (max-width:620px){ .row{ grid-template-columns:1fr } }
+  label{ display:block; margin:6px 0 6px; color:#0b5a8a; font-size:.95rem }
+  input, select, textarea{
+    width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:12px 14px; font-size:15px; background:#fff;
+    transition:.2s border,.2s box-shadow;
+  }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--primary); box-shadow:0 0 0 4px var(--ring) }
+  .btn{
+    border:none; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700;
+    background:linear-gradient(90deg, var(--primary), var(--primary2)); color:#fff;
+    box-shadow:0 10px 20px rgba(2,132,199,.25); transition:.2s transform,.2s box-shadow;
+  }
+  .btn:hover{ transform:translateY(-1px); box-shadow:0 14px 24px rgba(2,132,199,.28) }
+  .btn.secondary{ background:#e7f6ff; color:#0369a1; box-shadow:none; font-weight:600 }
+  .steps{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px }
+  .step{ padding:6px 10px; border-radius:999px; background:#f0f9ff; color:#0b5a8a; font-size:.85rem; border:1px solid #d9f1ff }
+  .step.active{ background:#d9f1ff }
+
+  .toggle{ display:inline-flex; border:1px solid #cfe8f9; border-radius:12px; overflow:hidden; background:#f7fbff }
+  .toggle button{ border:none; padding:10px 12px; cursor:pointer; background:transparent; color:#0369a1; font-weight:700 }
+  .toggle button.active{ background:#e6f6ff }
+
+  .metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px }
+  .metric{ border:1px dashed #cfe8f9; border-radius:14px; padding:12px; text-align:center; background:#f8fcff }
+  .metric .v{ font-size:1.35rem; font-weight:800 }
+  .metric small{ color:var(--muted) }
+
+  .plan{ display:grid; grid-template-columns:1fr; gap:12px; margin-top:14px }
+  .meal{ border:1px solid #e3f1ff; border-radius:14px; padding:12px; background:#ffffff }
+  .meal h3{ margin:.2rem 0 .5rem; color:#0b5a8a; font-size:1rem }
+
+  /* Modal */
+  .backdrop{ position:fixed; inset:0; background:rgba(2,28,53,.45); display:none; align-items:center; justify-content:center; padding:18px; z-index:50; backdrop-filter: blur(2px) }
+  .modal{ width:min(460px,95vw); background:#fff; border-radius:18px; padding:22px; box-shadow:0 24px 64px rgba(2,132,199,.35); animation:pop .18s ease }
+  .tabs{ display:flex; gap:6px; background:#eef8ff; border-radius:12px; padding:6px; margin-bottom:14px }
+  .tab{ flex:1; text-align:center; padding:10px; border-radius:10px; cursor:pointer; color:#0b5a8a; font-weight:700 }
+  .tab.active{ background:white; box-shadow:0 2px 8px rgba(2,132,199,.12) }
+
+  .hidden{ display:none !important }
+  @keyframes pop{ from{transform:scale(.96); opacity:0} to{transform:scale(1); opacity:1} }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(-6px)} to{opacity:1; transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header>
+  <h1>Smart BMI & Personalized Nutrition</h1>
+  <p>Explore first. When you're ready, <strong>Join</strong> to unlock your BMI, chart, and full-day Indian-first meal plan.</p>
+  <button class="join-btn" id="btnJoin">Join Now</button>
+</header>
+
+<!-- PROTECTED APP (hidden until user registers/logs in) -->
+<main class="app" id="app">
+  <!-- Left -->
+  <section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px">
+      <div>
+        <h2>Your Health Planner</h2>
+        <div class="steps">
+          <span class="step" id="st1">1) Details</span>
+          <span class="step" id="st2">2) BMI & Chart</span>
+          <span class="step" id="st3">3) Meal Plan</span>
+        </div>
+      </div>
+      <div>
+        <span id="hello" class="step hidden"></span>
+        <button id="logout" class="btn secondary">Log out</button>
+      </div>
+    </div>
+
+    <!-- STEP 1: USER DETAILS -->
+    <div id="details">
+      <p class="sub">Fill your basic info to personalize your plan.</p>
+      <div class="row">
+        <div>
+          <label>Age</label>
+          <input type="number" id="age" placeholder="e.g., 28" min="10" max="100" />
+        </div>
+        <div>
+          <label>Gender</label>
+          <select id="gender">
+            <option value="">Select…</option>
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Region</label>
+          <select id="region">
+            <option value="india">India (priority)</option>
+            <option value="western">Western/Global</option>
+            <option value="mediterranean">Mediterranean</option>
+            <option value="middleeast">Middle East</option>
+            <option value="eastasia">East Asia</option>
+          </select>
+        </div>
+        <div>
+          <label>Primary Goal</label>
+          <select id="goal">
+            <option value="">Select…</option>
+            <option value="loss">Weight Loss</option>
+            <option value="maintain">Maintain Weight</option>
+            <option value="gain">Muscle Gain</option>
+            <option value="fitness">Improve Fitness</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Diet Preference</label>
+          <div class="toggle" style="width:100%">
+            <button type="button" id="veg" class="active" style="flex:1">Veg</button>
+            <button type="button" id="nonveg" style="flex:1">Non-Veg</button>
+          </div>
+        </div>
+        <div>
+          <label>Health Concerns (optional)</label>
+          <input id="concerns" placeholder="e.g., diabetes, hypertension, thyroid" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Height (cm)</label>
+          <input type="number" id="height" min="100" max="230" placeholder="e.g., 170" />
+        </div>
+        <div>
+          <label>Weight (kg)</label>
+          <input type="number" id="weight" min="30" max="250" placeholder="e.g., 68" />
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:12px">
+        <button id="saveProfile" class="btn secondary">Save Details</button>
+        <button id="goBMI" class="btn">Continue to BMI</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: BMI -->
+    <div id="bmiStep" class="hidden">
+      <p class="sub">We calculate BMI and visualize your category.</p>
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:stretch; margin-top:6px">
+        <div class="card" style="flex:0 0 280px; padding:14px">
+          <canvas id="bmiChart" width="260" height="260" aria-label="BMI Pie"></canvas>
+        </div>
+        <div class="card" style="flex:1; padding:16px">
+          <div class="metrics">
+            <div class="metric"><div class="v" id="bmiVal">—</div><small>BMI</small></div>
+            <div class="metric"><div class="v" id="bmiCat">—</div><small>Category</small></div>
+            <div class="metric"><div class="v" id="targetWt">—</div><small>Target Wt (kg)</small></div>
+          </div>
+          <div id="bmiNote" class="sub" style="margin-top:10px">Enter details and continue to see insights.</div>
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap">
+            <button id="reDetails" class="btn secondary">Back</button>
+            <button id="buildPlan" class="btn">Build My Meal Plan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: MEAL PLAN -->
+    <div id="planStep" class="hidden">
+      <div id="planSummary" class="sub"></div>
+      <div class="plan" id="planBlocks"></div>
+      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap">
+        <button id="again" class="btn secondary">Recalculate</button>
+        <button id="saveAll" class="btn">Save Plan</button>
+      </div>
+      <p class="sub" style="margin-top:10px">General wellness guidance — not a substitute for medical advice.</p>
+    </div>
+  </section>
+
+  <!-- Right: Tips -->
+  <aside class="card">
+    <h2>Quick Tips</h2>
+    <ul class="sub" style="margin:0; padding-left:18px; line-height:1.6">
+      <li>Half plate veggies/salad, quarter protein, quarter smart carbs.</li>
+      <li>Hydration: ~30–35 ml/kg/day (adjust for weather & activity).</li>
+      <li>Prefer whole grains & millets; limit added sugar and ultra-processed foods.</li>
+      <li>Protein target: ~1.0–1.6 g/kg/day; higher for muscle gain.</li>
+      <li>Sleep & stress management boost your results.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- AUTH MODAL -->
+<div id="auth" class="backdrop" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modal">
+    <div class="tabs">
+      <div id="tabIn" class="tab active">Sign In</div>
+      <div id="tabUp" class="tab">Sign Up</div>
+    </div>
+
+    <!-- Sign In -->
+    <div id="viewIn">
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input type="email" id="inEmail" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="inPass" placeholder="••••••••" />
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px">
+        <label class="sub"><input type="checkbox" id="remember" /> Remember me</label>
+        <button id="closeIn" class="btn secondary">Close</button>
+      </div>
+      <div style="margin-top:12px">
+        <button id="doIn" class="btn" style="width:100%">Sign In</button>
+      </div>
+    </div>
+
+    <!-- Sign Up -->
+    <div id="viewUp" class="hidden">
+      <div class="row">
+        <div>
+          <label>Full Name</label>
+          <input type="text" id="upName" placeholder="Your name" />
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" id="upEmail" placeholder="you@example.com" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Password</label>
+          <input type="password" id="upPass" placeholder="Create a password" />
+        </div>
+        <div>
+          <label>Confirm Password</label>
+          <input type="password" id="upPass2" placeholder="Repeat password" />
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px">
+        <span class="sub">Accounts are stored locally in this browser.</span>
+        <button id="closeUp" class="btn secondary">Close</button>
+      </div>
+      <div style="margin-top:12px">
+        <button id="doUp" class="btn" style="width:100%">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ----------------- UTIL ----------------- */
+const $ = id => document.getElementById(id);
+const keyFor = email => "user_" + (email||"").toLowerCase().trim();
+
+function show(el){ el.classList.remove('hidden') }
+function hide(el){ el.classList.add('hidden') }
+function setSteps(n){
+  ['st1','st2','st3'].forEach((id,i)=>$(id).classList.toggle('active', i+1===n));
+}
+
+/* ----------------- AUTH ----------------- */
+function currentUser(){ const r=localStorage.getItem('loggedInUser'); return r?JSON.parse(r):null }
+function updateAuthUI(){
+  const u = currentUser();
+  if(u){ $('hello').textContent = "Hi, " + (u.name || u.email); show($('hello')); $('app').style.display='grid'; }
+  else { hide($('hello')); $('app').style.display='none'; }
+}
+function openAuth(){ $('auth').style.display='flex' }
+function closeAuth(){ $('auth').style.display='none' }
+function setAuthTab(which){ // 'in' or 'up'
+  const inMode = which==='in';
+  $('tabIn').classList.toggle('active', inMode);
+  $('tabUp').classList.toggle('active', !inMode);
+  $('viewIn').classList.toggle('hidden', !inMode);
+  $('viewUp').classList.toggle('hidden', inMode);
+}
+function signUp(){
+  const name=$('upName').value.trim(), email=$('upEmail').value.trim();
+  const p1=$('upPass').value.trim(), p2=$('upPass2').value.trim();
+  if(!name||!email||!p1) return alert('Please fill all fields.');
+  if(p1!==p2) return alert('Passwords do not match.');
+  const k=keyFor(email); if(localStorage.getItem(k)) return alert('Account exists. Please Sign In.');
+  const user={name,email,password:p1,profile:{}};
+  localStorage.setItem(k, JSON.stringify(user));
+  alert('Account created! You can sign in now.');
+  setAuthTab('in');
+}
+function signIn(){
+  const email=$('inEmail').value.trim(), pass=$('inPass').value.trim();
+  const data=localStorage.getItem(keyFor(email));
+  if(!data) return alert('No account found. Please Sign Up.');
+  const user=JSON.parse(data);
+  if(user.password!==pass) return alert('Incorrect password.');
+  localStorage.setItem('loggedInUser', JSON.stringify(user));
+  if($('remember').checked) localStorage.setItem('savedEmail', email); else localStorage.removeItem('savedEmail');
+  closeAuth();
+  updateAuthUI();
+  prefill(user.profile||{});
+}
+function logout(){ localStorage.removeItem('loggedInUser'); updateAuthUI(); alert('Logged out.'); }
+
+/* ----------------- PROFILE ----------------- */
+function getDiet(){ return $('veg').classList.contains('active') ? 'veg' : 'nonveg' }
+function prefill(p){
+  if(!p) return;
+  if(p.age) $('age').value = p.age;
+  if(p.gender) $('gender').value = p.gender;
+  if(p.region) $('region').value = p.region;
+  if(p.goal) $('goal').value = p.goal;
+  if(p.diet) { (p.diet==='veg'?$('veg'):$('nonveg')).classList.add('active'); (p.diet==='veg'?$('nonveg'):$('veg')).classList.remove('active'); }
+  if(p.concerns) $('concerns').value = p.concerns;
+  if(p.height) $('height').value = p.height;
+  if(p.weight) $('weight').value = p.weight;
+}
+function collect(){
+  return {
+    age:+$('age').value||null,
+    gender:$('gender').value,
+    region:$('region').value||'india',
+    goal:$('goal').value||'maintain',
+    diet:getDiet(),
+    concerns:$('concerns').value.trim(),
+    height:+$('height').value||null,
+    weight:+$('weight').value||null,
+  }
+}
+function saveProfile(){
+  const u=currentUser(); if(!u) return alert('Please sign in to save.');
+  u.profile = collect();
+  localStorage.setItem(keyFor(u.email), JSON.stringify(u));
+  localStorage.setItem('loggedInUser', JSON.stringify(u));
+  alert('Details saved!');
+}
+
+/* ----------------- BMI ----------------- */
+function calcBMI(hCm,wKg){ const hM=hCm/100; if(!hM||!wKg) return null; return +(wKg/(hM*hM)).toFixed(1) }
+function bmiCategory(b){ if(b<18.5) return 'Underweight'; if(b<25) return 'Normal'; if(b<30) return 'Overweight'; return 'Obese' }
+function targetWeight(hCm){ const hm=hCm/100; return +(22*hm*hm).toFixed(1) } // midpoint BMI 22
+
+/* ----------------- MEAL DB ----------------- */
+const INDIA = {
+  veg:{
+    loss:{ breakfast:["Vegetable upma + curd","Moong dal chilla (2) + mint chutney","Oats + skim milk + fruit"],
+           lunch:["2 rotis (whole-wheat/millet) + dal + sabzi + salad","Brown rice (1 cup) + rajma/chole + kachumber"],
+           snack:["Roasted chana","Buttermilk / Greek yogurt","Fruit + handful nuts"],
+           dinner:["Paneer/Tofu bhurji + 2 rotis + stir-fried veggies","Millet khichdi + cucumber raita"] },
+    maintain:{ breakfast:["Poha + peanuts + lemon","Idli (2) + sambar","Paratha (1) + curd (low-salt pickle)"],
+               lunch:["2 rotis + dal + sabzi + salad","Brown rice + kadhi + veg stir-fry"],
+               snack:["Sprouts chaat","Fruit + nuts","Dahi + seeds"],
+               dinner:["Paneer tikka + salad + 2 rotis","Vegetable pulao (brown rice) + raita"] },
+    gain:{ breakfast:["Paneer paratha + curd","Besan chilla (3) + chutney","Banana + peanut butter + milk"],
+           lunch:["2–3 rotis + dal makhani + sabzi + ghee (1 tsp)","Brown rice + chole/rajma + salad"],
+           snack:["Trail mix (nuts & seeds)","Lassi/smoothie","Sprouts + potatoes chaat"],
+           dinner:["Paneer/Tofu curry + jeera rice + salad","Khichdi + ghee + curd"] }
+  },
+  nonveg:{
+    loss:{ breakfast:["Veg poha + 2-egg omelet","Oats + egg whites","Idli (2) + sambar + boiled egg"],
+           lunch:["Brown rice + grilled chicken/fish curry + salad","2 rotis + egg curry + sautéed greens"],
+           snack:["Boiled eggs (2) + fruit","Dahi + seeds","Roasted chana"],
+           dinner:["Tandoori chicken/fish + veggies","Chicken stew + 2 chapatis + salad"] },
+    maintain:{ breakfast:["Eggs + toast + fruit","Dosa + sambar + egg whites","Paratha + omelet"],
+               lunch:["Rice + fish curry + salad","2 rotis + chicken curry + veg"],
+               snack:["Yogurt + nuts","Egg bhurji + salad","Fruit + peanuts"],
+               dinner:["Grilled chicken/fish + quinoa + veg","Egg curry + 2 chapatis + salad"] },
+    gain:{ breakfast:["3-egg omelet + paratha","Peanut butter toast + milk","Upma + eggs"],
+           lunch:["Rice + chicken curry + ghee (1 tsp) + salad","2–3 rotis + fish curry + veg"],
+           snack:["Chicken sandwich","Lassi/smoothie","Eggs + nuts"],
+           dinner:["Tandoori chicken + rice + veg","Keema + chapati + salad"] }
+  }
+};
+const GLOBAL = {
+  veg:{
+    loss:{ breakfast:["Overnight oats + berries","Tofu scramble + toast"],
+           lunch:["Brown rice bowl + beans + veg","Whole-grain wrap + hummus + veg"],
+           snack:["Fruit + nuts","Soy yogurt + seeds"],
+           dinner:["Stir-fry tofu + veg + rice","Pasta + tomato + beans + salad"] },
+    maintain:{ breakfast:["Oatmeal + banana + PB","Avocado toast + tomato"],
+               lunch:["Lentil salad + feta (optional)","Quinoa + veg + tahini"],
+               snack:["Trail mix","Cottage/soy yogurt"],
+               dinner:["Veg chili + whole-grain bread","Tofu/halloumi + roasted veg + potatoes"] },
+    gain:{ breakfast:["Granola + yogurt + fruit","Tofu scramble + toast + avocado"],
+           lunch:["Burrito bowl (rice+beans+veg+guac)","Pesto pasta + veg + beans"],
+           snack:["Smoothie (banana+oats+PB)","Nuts & dried fruit"],
+           dinner:["Curry tofu + rice + paratha","Veg lasagna + salad"] }
+  },
+  nonveg:{
+    loss:{ breakfast:["Eggs + toast + fruit","Yogurt + oats + nuts"],
+           lunch:["Grilled chicken + quinoa + salad","Tuna salad wrap"],
+           snack:["Jerky + fruit","Yogurt + seeds"],
+           dinner:["Baked fish + veggies + potatoes","Chicken stir-fry + rice + veg"] },
+    maintain:{ breakfast:["Omelet + toast","Greek yogurt + granola"],
+               lunch:["Turkey sandwich + salad","Chicken couscous bowl"],
+               snack:["Cheese + crackers","Hummus + carrots"],
+               dinner:["Grilled salmon + veg + rice","Beef/chicken stir-fry + noodles"] },
+    gain:{ breakfast:["Eggs + hash + toast","Yogurt parfait + granola + honey"],
+           lunch:["Chicken burrito bowl","Pasta + meat sauce + salad"],
+           snack:["Protein shake","Peanut butter sandwich"],
+           dinner:["Steak/chicken + potatoes + veg","Fish + rice + olive oil"] }
+  }
+};
+function getDB(region){ return region==='india' ? INDIA : GLOBAL }
+
+/* Concerns tweak */
+function parseConcerns(t){ t=(t||'').toLowerCase(); return {
+  diabetes:/diabet/.test(t), hypertension:/(hypertension|high\s*blood\s*pressure|bp)/.test(t), celiac:/(celiac|gluten)/.test(t)
+}}
+function tweak(items,c){
+  let out=[...items];
+  if(c.diabetes){ out=out.map(x=>x.replace(/white rice/gi,'brown rice / millet').replace(/juice/gi,'whole fruit')) }
+  if(c.hypertension){ out=out.map(x=>x.replace(/pickle/gi,'low-salt pickle')) }
+  if(c.celiac){ out=out.map(x=>x.replace(/roti|wheat|atta/gi,'GF roti (jowar/bajra)')) }
+  return out;
+}
+
+/* ----------------- PLAN ----------------- */
+function buildPlan(profile, cat){
+  const db = getDB(profile.region||'india')[profile.diet||'veg'][profile.goal||'maintain'];
+  const c = parseConcerns(profile.concerns);
+  const B=tweak(db.breakfast,c), L=tweak(db.lunch,c), S=tweak(db.snack,c), D=tweak(db.dinner,c);
+  const catNote = cat==='Underweight'?'Prioritize nutrient-dense calories to gain gradually.'
+                : cat==='Normal'?'Great! Stay consistent.'
+                : cat==='Overweight'?'Favor low-GI carbs, lean proteins & fiber.'
+                : 'Sustainable change: emphasize fiber, protein, movement.';
+  return {
+    summary:`Region: ${profile.region} • Diet: ${profile.diet?.toUpperCase()} • Goal: ${profile.goal}`,
+    notes:[catNote],
+    blocks:[
+      {title:'Breakfast (pick 1)', items:B},
+      {title:'Lunch (pick 1)', items:L},
+      {title:'Snack (pick 1–2)', items:S},
+      {title:'Dinner (pick 1)', items:D},
+    ]
+  };
+}
+
+/* ----------------- EVENTS ----------------- */
+$('btnJoin').addEventListener('click', ()=>{ openAuth(); setAuthTab('up'); }); // encourage registration
+$('logout').addEventListener('click', logout);
+$('tabIn').addEventListener('click', ()=>setAuthTab('in'));
+$('tabUp').addEventListener('click', ()=>setAuthTab('up'));
+$('closeIn').addEventListener('click', closeAuth);
+$('closeUp').addEventListener('click', closeAuth);
+$('doUp').addEventListener('click', signUp);
+$('doIn').addEventListener('click', signIn);
+
+$('veg').addEventListener('click', ()=>{ $('veg').classList.add('active'); $('nonveg').classList.remove('active') });
+$('nonveg').addEventListener('click', ()=>{ $('nonveg').classList.add('active'); $('veg').classList.remove('active') });
+
+$('saveProfile').addEventListener('click', saveProfile);
+$('goBMI').addEventListener('click', ()=>{
+  setSteps(2);
+  hide($('details')); show($('bmiStep'));
+  // compute immediately if values exist
+  computeAndRenderBMI();
+});
+$('reDetails').addEventListener('click', ()=>{ setSteps(1); hide($('bmiStep')); show($('details')) });
+$('again').addEventListener('click', ()=>{ setSteps(2); hide($('planStep')); show($('bmiStep')) });
+$('saveAll').addEventListener('click', saveProfile);
+
+let chart;
+function computeAndRenderBMI(){
+  const p=collect(); if(!p.height||!p.weight) return;
+  const bmi=calcBMI(p.height,p.weight); const cat=bmiCategory(bmi);
+  $('bmiVal').textContent=bmi.toFixed(1); $('bmiCat').textContent=cat; $('targetWt').textContent=targetWeight(p.height);
+  $('bmiNote').innerHTML=`Your BMI is <b>${bmi.toFixed(1)}</b> — <b>${cat}</b> range.`;
+
+  const labels=['Underweight','Normal','Overweight','Obese'];
+  const colors=['#60a5fa','#10b981','#f59e0b','#ef4444'];
+  const faded=['#cfe1ff','#bfeedd','#fde8c8','#ffd5d5'];
+  const vals=labels.map(l=>l===cat?10:1), fills=labels.map((l,i)=>l===cat?colors[i]:faded[i]);
+
+  const ctx=$('bmiChart').getContext('2d'); if(chart) chart.destroy();
+  chart=new Chart(ctx,{type:'doughnut', data:{labels,datasets:[{data:vals,backgroundColor:fills,borderWidth:0}]},
+    options:{cutout:'55%', plugins:{legend:{position:'bottom'}}}});
+}
+
+$('buildPlan').addEventListener('click', ()=>{
+  const u=currentUser(); if(u){ const s=JSON.parse(localStorage.getItem(keyFor(u.email))); s.profile=collect(); localStorage.setItem(keyFor(u.email),JSON.stringify(s)); localStorage.setItem('loggedInUser',JSON.stringify(s)); }
+  const p=collect(); const bmi=calcBMI(p.height,p.weight); if(!bmi) return alert('Please enter height & weight.');
+  const cat=bmiCategory(bmi);
+  const plan=buildPlan(p,cat);
+  $('planSummary').innerHTML=`<strong>Summary:</strong> ${plan.summary}<br><em>${plan.notes.join(' ')}</em>`;
+  $('planBlocks').innerHTML=plan.blocks.map(b=>`<div class="meal"><h3>${b.title}</h3><ul style="margin:6px 0 0 18px">${b.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+  setSteps(3); hide($('bmiStep')); show($('planStep'));
+  window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+});
+
+/* ----------------- INIT ----------------- */
+function openAuth(){ $('auth').style.display='flex' }
+function setAuthTab(w){ const i=w==='in'; $('tabIn').classList.toggle('active',i); $('tabUp').classList.toggle('active',!i); $('viewIn').classList.toggle('hidden',!i); $('viewUp').classList.toggle('hidden',i) }
+
+window.addEventListener('load', ()=>{
+  setSteps(1);
+  const saved=localStorage.getItem('savedEmail'); if(saved) $('inEmail').value=saved;
+  updateAuthUI();
+  // gate: ensure protected app is only visible when logged in
+  if(!currentUser()) { $('app').style.display='none' }
+});
+</script>
+</body>
+</html>
